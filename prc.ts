@@ -58,14 +58,14 @@ setTimeoutPromise(3000)
   .then((result) => console.log(result, "Done"));
 
 let obj = {
-  name: "krishna",
+  name: "harkirat",
   address: {
     location: {
       address: {
         place: {
           street: {
-            lane: "Stambalagaruvu",
-            city: "Guntur",
+            lane: "1",
+            city: "Noida",
           },
         },
       },
