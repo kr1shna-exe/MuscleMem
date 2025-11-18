@@ -1,28 +1,21 @@
-import type { User } from "../utils/types";
 import { v4 as uuidv4 } from "uuid";
+import type { User, CreateUser } from "../utils/types";
 
-export const users: Array<User> = [];
+export const Users: Array<User> = [];
 
-export async function addUser(
-  email: string,
-  password: string,
-  username: string,
-): Promise<User> {
-  const newUser = {
-    email,
-    password,
-    username,
+export async function addUser(data: CreateUser) {
+  const newUser: User = {
+    ...data,
     id: uuidv4(),
   };
-  users.push(newUser);
-  return {
-    id: newUser.id,
-    email: newUser.email,
-    username: newUser.username,
-    password: newUser.password,
-  };
+  Users.push(newUser);
+  return newUser;
 }
 
 export async function findByEmail(email: string) {
-  return users.find((user) => user.email == email);
+  return Users.find((user) => user.email == email);
+}
+
+export async function deleteUser(id: string) {
+  return Users.find((user) => user.id == id);
 }

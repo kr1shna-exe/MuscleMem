@@ -1,78 +1,74 @@
-import { Router } from "express";
-import type { Response, Request } from "express";
-import jwt, { type Jwt, type JwtPayload } from "jsonwebtoken";
+import { Router, type Request, type Response } from "express";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import type { User } from "../utils/types";
+import { createUserSchema } from "../utils/types";
 import { addUser, findByEmail } from "../controllers/auth";
-import { users } from "../controllers/auth";
 
+export const JWTSECRET = "113";
 const router = Router();
-const JWT_SECRET = "123";
 
-const authenticateToken = async (req: Request, res: Response, next: any) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(" ")[1];
-  if (!token) {
-    return res.status(400).json("Token Expired");
-  }
-  const decodedToken = jwt.verify(token, JWT_SECRET) as {
-    userId: string;
-    email: string;
-  };
-  const user = await findByEmail(decodedToken.email);
-  if (!user) {
-    return res.status(400).json("Invalid Token");
-  }
-  req.user = user;
-  next();
-};
-
-router.post("/signup", async (req: Request, res: Response) => {
-  const { email, password, username }: User = req.body;
-  const existingUser = await findByEmail(email);
+router.post("/register", async (req: Request, res: Response) => {
+  const validatedData = createUserSchema.parse(req.body);
+  const existingUser = await findByEmail(validatedData.email);
   if (existingUser) {
-    return res.status(400).json({ error: "User Already Exists" });
+    return res.status(400).json({ error: "Already have an account" });
   }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await addUser(email, hashedPassword, username);
-  const token = jwt.sign({ userId: user.id, email } as JwtPayload, JWT_SECRET, {
-    expiresIn: "10d",
+  const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+  const newUser = await addUser({
+    ...validatedData,
+    password: hashedPassword,
   });
+  const token = jwt.sign(
+    { userId: newUser.id, email: validatedData.email } as JwtPayload,
+    JWTSECRET,
+    {
+      expiresIn: "24h",
+    },
+  );
   res.cookie("token", token, {
     httpOnly: true,
-    maxAge: 10 * 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 60 * 1000,
     sameSite: "strict",
   });
-  res.status(200).json({
-    message: "User Created Successfully",
+  return res.status(200).json({
+    message: "User Registered Sucessfully",
     user: {
-      email: user.email,
+      email: newUser.email,
+      username: newUser.username,
     },
   });
 });
 
 router.post("/signin", async (req: Request, res: Response) => {
-  const { email, password }: User = req.body;
-  const user = await findByEmail(email);
-  if (!user) {
-    return res.status(400).json("User Not Found");
+  const validatedData = createUserSchema.parse(req.body);
+  const existingUser = await findByEmail(validatedData.email);
+  if (!existingUser) {
+    return res.status(400).json({ error: "User not registered yet" });
   }
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(
+    validatedData.password,
+    existingUser.password,
+  );
   if (!isPasswordValid) {
-    return res.status(400).json("Incorrect Password");
+    return res.status(400).json({ error: "Incorrect Password" });
   }
-  const token = jwt.sign({ userId: user.id, email } as JwtPayload, JWT_SECRET, {
-    expiresIn: "10d",
-  });
-  res.cookie("token", token, {
+  const token = jwt.sign(
+    { userId: existingUser.id, email: validatedData.email } as JwtPayload,
+    JWTSECRET,
+    {
+      expiresIn: "24h",
+    },
+  );
+  res.cookie(token, "token", {
     httpOnly: true,
-    maxAge: 10 * 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000,
     sameSite: "strict",
   });
-  res.status(200).json({
-    message: "User Logged In",
+  return res.status(200).json({
+    message: "User Loggedin Successfully",
     user: {
-      email: user.email,
+      email: existingUser.email,
+      username: existingUser.username,
     },
   });
 });
